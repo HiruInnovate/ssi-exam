@@ -74,8 +74,8 @@ export default function SupportForm({ userRole }) {
               <div className="icon-box"><Mail size={20} className="text-primary" /></div>
               <div>
                 <p className="label">Official Support Email</p>
-                <a href="mailto:ssicommunityadmin@onlinestudysmart.com" className="value">
-                  ssicommunityadmin@onlinestudysmart.com
+                <a href="mailto:admin@onlinestudysmart.com" className="value">
+                  admin@onlinestudysmart.com
                 </a>
               </div>
             </div>

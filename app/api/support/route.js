@@ -36,7 +36,7 @@ export async function POST(req) {
     // 3. Send Email
     const mailOptions = {
       from: settings.smtp.from,
-      to: 'ssicommunityadmin@onlinestudysmart.com',
+      to: 'admin@onlinestudysmart.com',
       subject: `New Support Inquiry from ${name}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; color: #1e293b;">
