@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { UserPlus, Trash2, Edit } from 'lucide-react';
+import { UserPlus, Trash2, Edit, KeyRound } from 'lucide-react';
 import { useModal } from '@/lib/contexts/ModalContext';
 
 export default function StudentsPage() {
@@ -11,8 +11,9 @@ export default function StudentsPage() {
   const [error, setError] = useState('');
   const { showAlert, showConfirm } = useModal();
 
+  const [searchTerm, setSearchTerm] = useState('');
   const [editingStudent, setEditingStudent] = useState(null);
-  const [editFormData, setEditFormData] = useState({ name: '', email: '', phone: '', batch: { C: false, Java: false, Python: false } });
+  const [editFormData, setEditFormData] = useState({ name: '', email: '', phone: '', batch: { 'c-programming': false, java: false, python: false } });
   const [editLoading, setEditLoading] = useState(false);
 
   const fetchStudents = async () => {
@@ -34,7 +35,7 @@ export default function StudentsPage() {
   }, []);
 
   const openEditModal = (student) => {
-    const batches = { C: false, Java: false, Python: false };
+    const batches = { 'c-programming': false, java: false, python: false };
     if (student.batch) {
       student.batch.forEach(b => { batches[b] = true; });
     }
@@ -84,6 +85,23 @@ export default function StudentsPage() {
     }
   };
 
+  const handleResetPassword = async (id) => {
+    const confirmed = await showConfirm(
+      'Reset Password',
+      'Are you sure you want to reset this student\\'s password back to the default (student123)?',
+      'WARNING'
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/admin/students/${id}/reset-password`, { method: 'PUT' });
+      if (!res.ok) throw new Error('Failed to reset password');
+      showAlert('Success', 'Student password has been reset successfully.', 'SUCCESS');
+    } catch (err) {
+      showAlert('Error', err.message, 'DANGER');
+    }
+  };
+
   const handleDelete = async (id) => {
     const confirmed = await showConfirm(
       'Remove Student', 
@@ -102,6 +120,11 @@ export default function StudentsPage() {
     }
   };
 
+  const filteredStudents = students.filter(s => 
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    s.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) return <div className="container p-8 text-center">Loading students...</div>;
 
   return (
@@ -111,10 +134,19 @@ export default function StudentsPage() {
           <h1 className="text-gradient">Student Management</h1>
           <p className="hidden-mobile" style={{ color: 'var(--border)' }}>Manage enrolled students and their exam attempts.</p>
         </div>
-        <Link href="/admin/students/new" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
-          <UserPlus size={18} />
-          Add Student
-        </Link>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input 
+            type="text" 
+            placeholder="Search name or email..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)', color: 'var(--foreground)' }}
+          />
+          <Link href="/admin/students/new" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
+            <UserPlus size={18} />
+            Add Student
+          </Link>
+        </div>
       </div>
 
       <div className="glass-panel" style={{ overflowX: 'auto' }}>
@@ -128,14 +160,14 @@ export default function StudentsPage() {
             </tr>
           </thead>
           <tbody>
-            {students.length === 0 ? (
+            {filteredStudents.length === 0 ? (
               <tr>
                 <td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: 'var(--border)' }}>
                   No students found. Add a student to get started.
                 </td>
               </tr>
             ) : (
-              students.map((student) => (
+              filteredStudents.map((student) => (
                 <tr key={student._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: 600 }}>{student.name}</div>
@@ -152,9 +184,17 @@ export default function StudentsPage() {
                   <td style={{ padding: '1rem', textAlign: 'right' }}>
                     <div className="flex flex-col items-end gap-2">
                       <button 
+                        onClick={() => handleResetPassword(student._id)}
+                        className="btn btn-secondary" 
+                        style={{ padding: '0.4rem 0.8rem', minWidth: '140px', fontSize: '0.8rem', background: 'rgba(234, 179, 8, 0.1)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.2)' }}
+                      >
+                        <KeyRound size={14} />
+                        <span>Reset Password</span>
+                      </button>
+                      <button 
                         onClick={() => openEditModal(student)}
                         className="btn" 
-                        style={{ padding: '0.4rem 0.8rem', minWidth: '120px', fontSize: '0.8rem', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}
+                        style={{ padding: '0.4rem 0.8rem', minWidth: '140px', fontSize: '0.8rem', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}
                       >
                         <Edit size={14} />
                         <span>Edit Details</span>
@@ -162,7 +202,7 @@ export default function StudentsPage() {
                       <button 
                         onClick={() => handleDelete(student._id)}
                         className="btn btn-danger" 
-                        style={{ padding: '0.4rem 0.8rem', minWidth: '120px', fontSize: '0.8rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                        style={{ padding: '0.4rem 0.8rem', minWidth: '140px', fontSize: '0.8rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
                       >
                         <Trash2 size={14} />
                         <span>Remove Student</span>
@@ -199,7 +239,7 @@ export default function StudentsPage() {
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>Batches</label>
                 <div className="flex gap-4 flex-wrap">
-                  {['C', 'Java', 'Python'].map(b => (
+                  {['c-programming', 'java', 'python'].map(b => (
                     <label key={b} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                       <input 
                         type="checkbox" style={{ width: 'auto' }}
