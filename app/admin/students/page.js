@@ -88,7 +88,7 @@ export default function StudentsPage() {
   const handleResetPassword = async (id) => {
     const confirmed = await showConfirm(
       'Reset Password',
-      'Are you sure you want to reset this student\\'s password back to the default (student123)?',
+      "Are you sure you want to reset this student's password back to the default (student123)?",
       'WARNING'
     );
     if (!confirmed) return;
