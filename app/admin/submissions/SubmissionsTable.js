@@ -1,21 +1,32 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle, Mail, AlertCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle, Mail, AlertCircle, RefreshCw, RotateCcw } from 'lucide-react';
 import { useModal } from '@/lib/contexts/ModalContext';
 
 export default function SubmissionsTable({ initialSubmissions }) {
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [loadingAction, setLoadingAction] = useState(null);
-  const { showAlert } = useModal();
+  const { showAlert, showConfirm } = useModal();
 
   const handleAction = async (subId, action) => {
+    if (action === 'reattempt') {
+      const sub = submissions.find(s => s._id === subId);
+      const confirmed = await showConfirm(
+        'Allow Exam Retake',
+        `Are you sure you want to cancel the passing evaluation and revoke any certificate for ${sub?.studentName || 'this student'}? This will unlock the exam so they can re-attempt it from their dashboard.`,
+        'WARNING'
+      );
+      if (!confirmed) return;
+    }
+
     setLoadingAction(`${action}-${subId}`);
     try {
       let endpoint;
       if (action === 'evaluate') endpoint = '/api/admin/submissions/evaluate';
       else if (action === 'issue') endpoint = '/api/admin/submissions/issue';
       else if (action === 'reset') endpoint = '/api/admin/submissions/reset';
+      else if (action === 'reattempt') endpoint = '/api/admin/submissions/allow-reattempt';
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -40,10 +51,16 @@ export default function SubmissionsTable({ initialSubmissions }) {
              return { ...s, mailSent: true };
           } else if (action === 'reset') {
              return { ...s, status: 'pending', passed: null, score: null, mailSent: false };
+          } else if (action === 'reattempt') {
+             return { ...s, status: 'evaluated', passed: false, mailSent: false };
           }
         }
         return s;
       }));
+
+      if (action === 'reattempt') {
+        showAlert('Success', data.message || 'Exam unlocked for re-attempt successfully.', 'SUCCESS');
+      }
 
     } catch (err) {
       showAlert('Error', err.message, 'DANGER');
@@ -93,13 +110,18 @@ export default function SubmissionsTable({ initialSubmissions }) {
                   </td>
                   <td style={{ padding: '1rem' }}>
                     <span style={{ 
-                      background: evaluated ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)', 
-                      color: evaluated ? 'var(--success)' : 'var(--accent)', 
+                      background: evaluated 
+                        ? (sub.passed ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)') 
+                        : 'rgba(245, 158, 11, 0.2)', 
+                      color: evaluated 
+                        ? (sub.passed ? 'var(--success)' : 'var(--danger)') 
+                        : 'var(--accent)', 
                       padding: '0.2rem 0.5rem', 
                       borderRadius: '4px',
-                      fontSize: '0.8rem'
+                      fontSize: '0.8rem',
+                      fontWeight: 500
                     }}>
-                      {sub.status.toUpperCase()}
+                      {evaluated ? (sub.passed ? 'PASSED' : 'NOT PASSED') : sub.status.toUpperCase()}
                     </span>
                   </td>
                   <td style={{ padding: '1rem' }}>
@@ -123,11 +145,11 @@ export default function SubmissionsTable({ initialSubmissions }) {
                         </button>
                       )}
                       {evaluated && !sub.mailSent && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <button 
                              className={`btn`}
                              style={{ 
-                               padding: '0.4rem 1rem', 
+                               padding: '0.4rem 0.8rem', 
                                fontSize: '0.8rem', 
                                background: sub.passed ? 'var(--success)' : 'transparent', 
                                border: sub.passed ? 'none' : '1px solid var(--border)',
@@ -140,9 +162,23 @@ export default function SubmissionsTable({ initialSubmissions }) {
                              {loadingAction === `issue-${sub._id}` ? <RefreshCw size={14} className="animate-spin" style={{ display: 'inline', marginRight: '4px' }} /> : (sub.passed ? <Mail size={14} style={{ display: 'inline', marginRight: '4px' }}/> : <AlertCircle size={14} style={{ display: 'inline', marginRight: '4px' }}/>)}
                              {sub.passed ? 'Issue Certificate' : 'Notify Failure'}
                           </button>
+
+                          {sub.passed && (
+                            <button 
+                               className="btn"
+                               style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', color: '#eab308', cursor: 'pointer' }}
+                               onClick={() => handleAction(sub._id, 'reattempt')}
+                               disabled={loadingAction === `reattempt-${sub._id}`}
+                               title="Cancel pass and allow student to re-take exam"
+                            >
+                               {loadingAction === `reattempt-${sub._id}` ? <RefreshCw size={14} className="animate-spin" style={{ display: 'inline', marginRight: '4px' }} /> : <RotateCcw size={14} style={{ display: 'inline', marginRight: '4px' }} />}
+                               Allow Retake
+                            </button>
+                          )}
+
                           <button 
                              className="btn"
-                             style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', background: 'transparent', border: '1px solid var(--border)', color: 'var(--accent)', cursor: 'pointer' }}
+                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'transparent', border: '1px solid var(--border)', color: 'var(--accent)', cursor: 'pointer' }}
                              onClick={() => handleAction(sub._id, 'reset')}
                              disabled={loadingAction === `reset-${sub._id}`}
                           >
@@ -151,8 +187,22 @@ export default function SubmissionsTable({ initialSubmissions }) {
                         </div>
                       )}
                       {evaluated && sub.mailSent && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <span style={{ color: 'var(--success)', fontSize: '0.85rem' }}>✓ Email Sent</span>
+
+                          {sub.passed && (
+                            <button 
+                               className="btn"
+                               style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', color: '#eab308', cursor: 'pointer' }}
+                               onClick={() => handleAction(sub._id, 'reattempt')}
+                               disabled={loadingAction === `reattempt-${sub._id}`}
+                               title="Cancel pass and allow student to re-take exam"
+                            >
+                               {loadingAction === `reattempt-${sub._id}` ? <RefreshCw size={12} className="animate-spin" style={{ display: 'inline', marginRight: '3px' }} /> : <RotateCcw size={12} style={{ display: 'inline', marginRight: '3px' }} />}
+                               Allow Retake
+                            </button>
+                          )}
+
                           <button 
                              className="btn"
                              style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--border)', color: 'var(--accent)', cursor: 'pointer' }}

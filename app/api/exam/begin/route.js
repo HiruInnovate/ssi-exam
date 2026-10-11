@@ -17,13 +17,18 @@ export async function POST(req) {
     const exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });
     if (!exam) return new Response(JSON.stringify({ error: 'Exam not found' }), { status: 404 });
 
+    const student = await db.collection('students').findOne({ _id: new ObjectId(auth.user.id) });
+
     // Check attempts dynamically by counting submissions
     const submissionCount = await db.collection('submissions').countDocuments({
       studentId: new ObjectId(auth.user.id),
       examId: new ObjectId(examId)
     });
 
-    const maxAttempts = exam.maxAttempts || 3;
+    const studentCustomAttempts = student?.attempts && typeof student.attempts[exam.batch] === 'number' ? student.attempts[exam.batch] : null;
+    const maxAttempts = (studentCustomAttempts !== null && studentCustomAttempts > (exam.maxAttempts || 3))
+      ? studentCustomAttempts
+      : (exam.maxAttempts || 3);
     
     if (submissionCount >= maxAttempts) {
        return new Response(JSON.stringify({ error: 'Maximum attempts reached for this exam.' }), { status: 403 });

@@ -66,7 +66,10 @@ export default async function StudentDashboardOverview() {
           {availableExams.map(exam => {
             const examSubmissions = submissions.filter(s => s.examId.toString() === exam._id.toString());
             const usedAttempts = examSubmissions.length;
-            const maxAttempts = exam.maxAttempts || 3;
+            const studentCustomAttempts = student.attempts && typeof student.attempts[exam.batch] === 'number' ? student.attempts[exam.batch] : null;
+            const maxAttempts = (studentCustomAttempts !== null && studentCustomAttempts > (exam.maxAttempts || 3))
+              ? studentCustomAttempts
+              : (exam.maxAttempts || 3);
             
             const passedSubmission = examSubmissions.find(s => s.passed);
             
